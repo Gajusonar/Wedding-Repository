@@ -5,6 +5,12 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+# Give the workflow permission to write Pages artifacts and deploy
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -23,20 +29,29 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Ensure publish dir exists (copy .output/public -> dist if needed)
+      - name: Prepare publish directory (supports .output/public or dist)
         run: |
+          rm -rf public_out || true
           if [ -d ".output/public" ]; then
-            echo "Found .output/public, copying to dist"
-            rm -rf dist || true
-            mkdir -p dist
-            cp -a .output/public/. dist/
+            echo "Using .output/public"
+            mkdir -p public_out
+            cp -a .output/public/. public_out/
+          elif [ -d "dist" ]; then
+            echo "Using dist"
+            mkdir -p public_out
+            cp -a dist/. public_out/
           else
-            echo "No .output/public found, leaving dist as-is"
+            echo "No build output found (dist or .output/public)" && exit 1
           fi
 
-      - name: Deploy to gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
-          publish_branch: gh-pages
+          path: public_out
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
