@@ -85,6 +85,12 @@ jobs:
 
           echo "Generated public_out/index.html referencing assets/$JS_FILE"
 
+          # Ensure a 404 fallback exists for GitHub Pages to serve SPA routes
+          if [ ! -f public_out/404.html ]; then
+            cp public_out/index.html public_out/404.html
+            echo "Generated public_out/404.html as SPA fallback"
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
