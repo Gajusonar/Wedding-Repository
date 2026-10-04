@@ -23,6 +23,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Ensure publish dir exists (copy .output/public -> dist if needed)
+        run: |
+          if [ -d ".output/public" ]; then
+            echo "Found .output/public, copying to dist"
+            rm -rf dist || true
+            mkdir -p dist
+            cp -a .output/public/. dist/
+          else
+            echo "No .output/public found, leaving dist as-is"
+          fi
+
       - name: Deploy to gh-pages
         uses: peaceiris/actions-gh-pages@v4
         with:
