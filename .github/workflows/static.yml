@@ -92,6 +92,32 @@ jobs:
             echo "Generated public_out/404.html as SPA fallback"
           fi
 
+      - name: Verify publish directory and index references
+        run: |
+          echo "Listing public_out (top-level):" && ls -la public_out || true
+          echo "Listing public_out/assets (first 200 entries):" && ls -la public_out/assets | sed -n '1,200p' || true
+
+          # Extract script src from generated index.html
+          IDX="public_out/index.html"
+          if [ ! -f "$IDX" ]; then
+            echo "ERROR: $IDX not found" && exit 1
+          fi
+
+          SCRIPT_SRC=$(grep -oP 'src="\Kassets/[^"\']+' "$IDX" | head -n1 || true)
+          if [ -z "$SCRIPT_SRC" ]; then
+            echo "ERROR: no script src found in $IDX" && exit 1
+          fi
+
+          echo "Index references script: $SCRIPT_SRC"
+          if [ ! -f "public_out/$SCRIPT_SRC" ]; then
+            echo "ERROR: referenced script public_out/$SCRIPT_SRC is missing" && ls -la public_out/assets || true && exit 1
+          fi
+
+          echo "Publish directory verification passed: index.html references an existing asset."
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
