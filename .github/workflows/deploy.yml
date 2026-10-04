@@ -70,7 +70,7 @@ jobs:
             <meta name="viewport" content="width=device-width,initial-scale=1" />
             <base href="/Wedding-Repository/">
             <title>Gajendra & Bhakti — Invitation</title>
-HTML
+
           if [ -n "$CSS_FILE" ]; then
             echo "  <link rel=\"stylesheet\" href=\"assets/$CSS_FILE\">" >> public_out/index.html
           fi
@@ -81,7 +81,7 @@ HTML
             <script type="module" src="assets/$JS_FILE"></script>
           </body>
           </html>
-HTML
+
 
           echo "Generated public_out/index.html referencing assets/$JS_FILE"
 
