@@ -245,33 +245,44 @@ function WeddingInvitation() {
       {!opened ? <div className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden bg-background px-5 py-8 text-center paper-texture">
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => <span key={i} className={`float-petal petal-${i + 1} absolute top-0 text-rose`}>✿</span>)}</div>
         <p className="reveal-up warm-shimmer font-display text-2xl text-primary">॥ श्री गणेशाय नमः ॥</p>
-        <div className="reveal-up reveal-delay relative mt-5 w-full max-w-[340px] sm:max-w-[400px]">
-          <div className={`parallax-hero ambient-glow relative mx-auto aspect-[2/3] w-full overflow-hidden border-[6px] border-ivory bg-secondary invitation-stage sm:border-[9px] ${opening ? 'envelope-opening' : ''}`}>
-            <div className={`cover-layer ${opening ? 'cover-opening' : ''}`} aria-hidden="true" />
-            <div ref={petalContainerRef} className="petal-burst-container pointer-events-none absolute inset-0 z-50" aria-hidden="true" />
-            <div className={`letter-inner ${opening ? 'letter-unfold' : ''} pointer-events-none absolute inset-0 z-30 ambient-layer-strong vignette`}>
-              <div className="printed-page" aria-hidden={!opening && !opened}>
-                <div className="names">{withTitle(details.partner1Title, details.partner1)}<span className="amp">&</span>{withTitle(details.partner2Title, details.partner2)}</div>
-                <div className="meta">{weekday(details.date)} · {displayDate(details.date)} · {displayTime(details.time)}</div>
-                <div className="message">{details.message}</div>
+        <div className={`reveal-up reveal-delay relative mt-10 w-full max-w-[340px] sm:max-w-[440px] perspective-1000 envelope-wrapper ${opening ? 'is-opening' : ''}`}
+             onClick={() => {
+               if(!opening && !opened) {
+                 playPaperRustle();
+                 setOpening(true);
+                 window.setTimeout(() => { setOpened(true); setOpening(false); spawnPetalBurst(); window.scrollTo({ top: 0, behavior: "instant" }); }, 1800);
+               }
+             }}>
+          <div className="envelope relative mx-auto aspect-[4/3] w-full preserve-3d cursor-pointer shadow-2xl transition-transform duration-700 hover:scale-[1.02]">
+            <div className="envelope-back absolute inset-0 bg-[#f0e6d6] rounded-md shadow-inner border border-gold/10" />
+            
+            <div className="envelope-card absolute inset-2 bg-ivory shadow-lg rounded-sm overflow-hidden flex flex-col items-center justify-center border border-gold/20">
+              <img src={ceremony} alt="Ceremony illustration" width={1024} height={1536} className="absolute inset-0 size-full object-cover opacity-70" />
+              <div className="relative z-10 text-center px-4 bg-ivory/80 backdrop-blur-sm py-4 rounded-md border border-gold/30 w-[85%]">
+                <span className="font-display text-sm italic text-primary">The wedding of</span>
+                <p className="mt-1 font-display text-[clamp(1.5rem,6vw,2.2rem)] leading-none text-primary">{withTitle(details.partner1Title, details.partner1)} & {withTitle(details.partner2Title, details.partner2)}</p>
+                <span className="mt-2 block font-sans text-[9px] font-semibold uppercase tracking-widest text-primary">{displayDate(details.date)}</span>
               </div>
             </div>
-            <img src={ceremony} alt="Illustrated Hindu wedding mandap with marigolds, lamps and sacred fire" width={1024} height={1536} className="absolute inset-0 size-full object-cover" />
-            <div className="absolute inset-x-[13%] top-[32%] flex h-[35%] flex-col items-center justify-center text-primary">
-              <span className="font-display text-lg italic sm:text-xl">The wedding of</span>
-              <p className="mt-2 font-display text-[clamp(1.8rem,8vw,3rem)] leading-[.95]">{withTitle(details.partner1Title, details.partner1)}<span className="my-1 block text-[.7em] italic text-gold">&</span>{withTitle(details.partner2Title, details.partner2)}</p>
-              <span className="mt-4 font-sans text-[10px] font-semibold uppercase tracking-[0.17em]">{displayDate(details.date)}</span>
+            
+            <div className="envelope-flap left-flap absolute inset-y-0 left-0 w-[52%] bg-[#f5ecdd] origin-left border-r border-gold/10" style={{ clipPath: 'polygon(0 0, 100% 50%, 0 100%)' }} />
+            <div className="envelope-flap right-flap absolute inset-y-0 right-0 w-[52%] bg-[#f5ecdd] origin-right border-l border-gold/10" style={{ clipPath: 'polygon(100% 0, 0 50%, 100% 100%)' }} />
+            <div className="envelope-flap bottom-flap absolute inset-x-0 bottom-0 h-[65%] bg-[#faf3e6] origin-bottom border-t border-gold/10 shadow-[0_-4px_12px_rgba(0,0,0,0.03)]" style={{ clipPath: 'polygon(0 100%, 50% 0, 100% 100%)' }} />
+            <div className="envelope-flap top-flap absolute inset-x-0 top-0 h-[60%] bg-[#fcf6eb] origin-top border-b border-gold/20 z-40 shadow-[0_4px_12px_rgba(0,0,0,0.06)] flex items-end justify-center" style={{ clipPath: 'polygon(0 0, 50% 100%, 100% 0)' }}>
+              <div className="wax-seal absolute -bottom-6 size-12 rounded-full bg-rose shadow-md flex items-center justify-center border border-rose/80">
+                <span className="font-display text-lg text-rose-200">
+                  {details.partner1?.[0] || 'G'}&{details.partner2?.[0] || 'B'}
+                </span>
+              </div>
             </div>
-            <div className="ritual-flame absolute bottom-[20%] left-1/2 h-9 w-9 -translate-x-1/2 rounded-full bg-gold/20 blur-md" aria-hidden="true" />
           </div>
         </div>
-        <p className="reveal-up reveal-late mt-5 font-display text-xl italic text-foreground sm:text-2xl">{details.guest ? `For ${details.guest}` : "For someone very special"}</p>
+        <p className="reveal-up reveal-late mt-8 font-display text-xl italic text-foreground sm:text-2xl">{details.guest ? `For ${details.guest}` : "For someone very special"}</p>
         <Button variant="elegant" size="lg" className="reveal-up reveal-late mt-4 h-12 px-8" onClick={() => {
-              // play a short envelope opening animation and sfx, then show the invitation
+              if (opening) return;
               playPaperRustle();
               setOpening(true);
-              // Duration should match the CSS animation (1.1s). Use a timeout to reveal and spawn petals.
-              window.setTimeout(() => { setOpened(true); setOpening(false); spawnPetalBurst(); window.scrollTo({ top: 0, behavior: "instant" }); }, 1100);
+              window.setTimeout(() => { setOpened(true); setOpening(false); spawnPetalBurst(); window.scrollTo({ top: 0, behavior: "instant" }); }, 1800);
             }}>Open your invitation <ArrowRight /></Button>
       </div> : <div className="reveal-up"><Invitation details={details} daysLeft={daysLeft} guestMode onSaveDate={saveDate} /></div>}
       <div className="fixed bottom-5 right-5 z-30 flex gap-2">
