@@ -32,13 +32,73 @@ jobs:
       - name: Build project
         run: bun run build
 
+      - name: Prepare publish directory (supports .output/public or dist)
+        run: |
+          rm -rf public_out || true
+          if [ -d ".output/public" ]; then
+            echo "Using .output/public"
+            mkdir -p public_out
+            cp -a .output/public/. public_out/
+          elif [ -d "dist" ]; then
+            echo "Using dist"
+            mkdir -p public_out
+            cp -a dist/. public_out/
+          else
+            echo "No build output found (dist or .output/public)" && exit 1
+          fi
+
+      - name: Generate index.html fallback for Pages (if missing)
+        run: |
+          if [ -f public_out/index.html ]; then
+            echo "index.html already present"
+            exit 0
+          fi
+
+          ASSETS_DIR="public_out/assets"
+          JS_FILE="$(ls "$ASSETS_DIR" 2>/dev/null | grep '^index-.*\.js$' | head -n1 || true)"
+          CSS_FILE="$(ls "$ASSETS_DIR" 2>/dev/null | grep '^styles-.*\.css$' | head -n1 || true)"
+
+          if [ -z "$JS_FILE" ]; then
+            echo "No index-*.js found in assets; listing assets:" && ls -la "$ASSETS_DIR" || true
+            exit 1
+          fi
+
+          CSS_LINK=""
+          if [ -n "$CSS_FILE" ]; then
+            CSS_LINK="  <link rel=\"stylesheet\" href=\"assets/$CSS_FILE\">"
+          fi
+
+          cat > public_out/index.html <<HTML
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <base href="/Wedding-Repository/">
+  <title>Gajendra & Bhakti — Invitation</title>
+$CSS_LINK
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="assets/$JS_FILE"></script>
+</body>
+</html>
+HTML
+
+          echo "Generated public_out/index.html referencing assets/$JS_FILE"
+
+          if [ ! -f public_out/404.html ]; then
+            cp public_out/index.html public_out/404.html
+            echo "Generated public_out/404.html as SPA fallback"
+          fi
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      - name: Upload artifact
+      - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.output/public' # Change to '.output/public' if using TanStack Start full-stack output
+          path: public_out
 
       - name: Deploy to GitHub Pages
         id: deployment
