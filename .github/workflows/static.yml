@@ -38,7 +38,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist' # Change to '.output/public' if using TanStack Start full-stack output
+          path: '.output/public' # Change to '.output/public' if using TanStack Start full-stack output
 
       - name: Deploy to GitHub Pages
         id: deployment
