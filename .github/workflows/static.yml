@@ -46,50 +46,13 @@ jobs:
             echo "No build output found (.output/public or dist)" && exit 1
           fi
 
-      - name: Generate Pages entry files from current build output
+      - name: Ensure 404.html exists
         run: |
-          python3 - <<'PY'
-          import os
-          from pathlib import Path
-
-          root = Path(os.environ.get('PUBLISH_DIR', '.output/public'))
-          if not root.exists():
-              raise SystemExit(f'No build output directory found at {root}')
-
-          assets = root / 'assets'
-          js_files = sorted(assets.glob('index-*.js'))
-          css_files = sorted(assets.glob('styles-*.css'))
-
-          if not js_files:
-              print(f'No index-*.js files found under {assets}. Listing contents:')
-              for child in sorted(assets.iterdir()):
-                  print(' -', child.name)
-              raise SystemExit(1)
-
-          js_file = js_files[0].name
-          css_file = css_files[0].name if css_files else None
-          css_link = f'  <link rel="stylesheet" href="assets/{css_file}">' if css_file else ''
-
-          html = f'''<!doctype html>
-          <html>
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width,initial-scale=1" />
-            <base href="/Wedding-Repository/">
-            <title>Gajendra & Bhakti — Invitation</title>
-          {css_link}
-          </head>
-          <body>
-            <div id="root"></div>
-            <script type="module" src="assets/{js_file}"></script>
-          </body>
-          </html>
-          '''
-
-          (root / 'index.html').write_text(html, encoding='utf-8')
-          (root / '404.html').write_text(html, encoding='utf-8')
-          print(f'Wrote index.html/404.html with script assets/{js_file}')
-          PY
+          root="${PUBLISH_DIR:-.output/public}"
+          if [ -f "$root/index.html" ] && [ ! -f "$root/404.html" ]; then
+            cp "$root/index.html" "$root/404.html"
+            echo "Copied index.html to 404.html"
+          fi
 
       - name: Verify Pages artifact content
         run: |
@@ -108,11 +71,16 @@ jobs:
           if not match:
               raise SystemExit(f'ERROR: no script tag found in {idx}')
 
-          script = root / match.group(1)
+          src_path = match.group(1)
+          if src_path.startswith('/Wedding-Repository/'):
+              src_path = src_path[len('/Wedding-Repository/'):]
+          src_path = src_path.lstrip('/')
+
+          script = root / src_path
           if not script.exists():
               raise SystemExit(f'ERROR: referenced script does not exist: {script}')
 
-          print(f'Verified index.html references existing script: {match.group(1)}')
+          print(f'Verified index.html references existing script: {match.group(1)} -> {script}')
           PY
 
       - name: Setup Pages
