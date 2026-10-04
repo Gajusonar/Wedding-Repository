@@ -44,6 +44,47 @@ jobs:
             echo "No build output found (dist or .output/public)" && exit 1
           fi
 
+      - name: Generate index.html fallback for Pages (if missing)
+        run: |
+          # If index.html already exists, do nothing
+          if [ -f public_out/index.html ]; then
+            echo "index.html already present"
+            exit 0
+          fi
+
+          # Find the main index JS and optional CSS inside public_out/assets
+          ASSETS_DIR="public_out/assets"
+          JS_FILE="$(ls "$ASSETS_DIR" 2>/dev/null | grep '^index-.*\.js$' | head -n1 || true)"
+          CSS_FILE="$(ls "$ASSETS_DIR" 2>/dev/null | grep '^styles-.*\.css$' | head -n1 || true)"
+
+          if [ -z "$JS_FILE" ]; then
+            echo "No index-*.js found in assets; listing assets:" && ls -la "$ASSETS_DIR" || true
+            exit 1
+          fi
+
+          cat > public_out/index.html <<HTML
+          <!doctype html>
+          <html>
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width,initial-scale=1" />
+            <base href="/Wedding-Repository/">
+            <title>Gajendra & Bhakti — Invitation</title>
+HTML
+          if [ -n "$CSS_FILE" ]; then
+            echo "  <link rel=\"stylesheet\" href=\"assets/$CSS_FILE\">" >> public_out/index.html
+          fi
+          cat >> public_out/index.html <<HTML
+          </head>
+          <body>
+            <div id="root"></div>
+            <script type="module" src="assets/$JS_FILE"></script>
+          </body>
+          </html>
+HTML
+
+          echo "Generated public_out/index.html referencing assets/$JS_FILE"
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
