@@ -49,71 +49,80 @@ jobs:
 
       - name: Generate index.html fallback for Pages (if missing)
         run: |
-          if [ -f public_out/index.html ]; then
-            echo "index.html already present"
-            exit 0
-          fi
+          python - <<'PY'
+          from pathlib import Path
+          out = Path('public_out')
+          if (out / 'index.html').exists():
+              print('index.html already present')
+              raise SystemExit(0)
 
-          ASSETS_DIR="public_out/assets"
-          JS_FILE="$(ls "$ASSETS_DIR" 2>/dev/null | grep '^index-.*\.js$' | head -n1 || true)"
-          CSS_FILE="$(ls "$ASSETS_DIR" 2>/dev/null | grep '^styles-.*\.css$' | head -n1 || true)"
+          assets_dir = out / 'assets'
+          js_files = sorted(p.name for p in assets_dir.glob('index-*.js'))
+          css_files = sorted(p.name for p in assets_dir.glob('styles-*.css'))
 
-          if [ -z "$JS_FILE" ]; then
-            echo "No index-*.js found in assets; listing assets:" && ls -la "$ASSETS_DIR" || true
-            exit 1
-          fi
+          if not js_files:
+              print('No index-*.js found in assets; listing assets:')
+              for p in sorted(assets_dir.iterdir()):
+                  print(' -', p.name)
+              raise SystemExit(1)
 
-          CSS_LINK=""
-          if [ -n "$CSS_FILE" ]; then
-            CSS_LINK="  <link rel=\"stylesheet\" href=\"assets/$CSS_FILE\">"
-          fi
+          js_file = js_files[0]
+          css_file = css_files[0] if css_files else None
+          css_link = f'  <link rel="stylesheet" href="assets/{css_file}">' if css_file else ''
 
-          cat > public_out/index.html <<HTML
-          <!doctype html>
+          html = f'''<!doctype html>
           <html>
           <head>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width,initial-scale=1" />
             <base href="/Wedding-Repository/">
             <title>Gajendra & Bhakti — Invitation</title>
-          $CSS_LINK
+          {css_link}
           </head>
           <body>
             <div id="root"></div>
-            <script type="module" src="assets/$JS_FILE"></script>
+            <script type="module" src="assets/{js_file}"></script>
           </body>
           </html>
-          HTML
+          '''
 
-          echo "Generated public_out/index.html referencing assets/$JS_FILE"
+          (out / 'index.html').write_text(html, encoding='utf-8')
+          print(f'Generated public_out/index.html referencing assets/{js_file}')
 
-          if [ ! -f public_out/404.html ]; then
-            cp public_out/index.html public_out/404.html
-            echo "Generated public_out/404.html as SPA fallback"
-          fi
+          if not (out / '404.html').exists():
+              (out / '404.html').write_text(html, encoding='utf-8')
+              print('Generated public_out/404.html as SPA fallback')
+          PY
 
       - name: Verify publish directory and index references
         run: |
-          echo "Listing public_out (top-level):" && ls -la public_out || true
-          echo "Listing public_out/assets (first 200 entries):" && ls -la public_out/assets | sed -n '1,200p' || true
+          python - <<'PY'
+          from pathlib import Path
+          import re
 
-          # Extract script src from generated index.html
-          IDX="public_out/index.html"
-          if [ ! -f "$IDX" ]; then
-            echo "ERROR: $IDX not found" && exit 1
-          fi
+          out = Path('public_out')
+          idx = out / 'index.html'
+          if not idx.exists():
+              print(f'ERROR: {idx} not found')
+              raise SystemExit(1)
 
-          SCRIPT_SRC=$(grep -oP 'src="\Kassets/[^"\']+' "$IDX" | head -n1 || true)
-          if [ -z "$SCRIPT_SRC" ]; then
-            echo "ERROR: no script src found in $IDX" && exit 1
-          fi
+          text = idx.read_text(encoding='utf-8')
+          match = re.search(r'<script[^>]+src="([^"]+)"', text)
+          if not match:
+              print(f'ERROR: no script src found in {idx}')
+              raise SystemExit(1)
 
-          echo "Index references script: $SCRIPT_SRC"
-          if [ ! -f "public_out/$SCRIPT_SRC" ]; then
-            echo "ERROR: referenced script public_out/$SCRIPT_SRC is missing" && ls -la public_out/assets || true && exit 1
-          fi
+          script_src = match.group(1)
+          script_path = out / script_src
+          print(f'Index references script: {script_src}')
+          if not script_path.exists():
+              print(f'ERROR: referenced script {script_path} is missing')
+              for child in sorted((out / 'assets').iterdir()):
+                  print(' -', child.name)
+              raise SystemExit(1)
 
-          echo "Publish directory verification passed: index.html references an existing asset."
+          print('Publish directory verification passed: index.html references an existing asset.')
+          PY
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
