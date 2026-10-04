@@ -32,42 +32,42 @@ jobs:
       - name: Build project
         run: bun run build
 
-      - name: Prepare publish directory (supports .output/public or dist)
+      - name: Prepare publish directory
         run: |
-          rm -rf public_out || true
           if [ -d ".output/public" ]; then
             echo "Using .output/public"
-            mkdir -p public_out
-            cp -a .output/public/. public_out/
+            echo "PUBLISH_DIR=.output/public" >> "$GITHUB_ENV"
+            ls -la .output/public
           elif [ -d "dist" ]; then
             echo "Using dist"
-            mkdir -p public_out
-            cp -a dist/. public_out/
+            echo "PUBLISH_DIR=dist" >> "$GITHUB_ENV"
+            ls -la dist
           else
-            echo "No build output found (dist or .output/public)" && exit 1
+            echo "No build output found (.output/public or dist)" && exit 1
           fi
 
-      - name: Generate index.html fallback for Pages (if missing)
+      - name: Generate Pages entry files from current build output
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
+          import os
           from pathlib import Path
-          out = Path('public_out')
-          if (out / 'index.html').exists():
-              print('index.html already present')
-              raise SystemExit(0)
 
-          assets_dir = out / 'assets'
-          js_files = sorted(p.name for p in assets_dir.glob('index-*.js'))
-          css_files = sorted(p.name for p in assets_dir.glob('styles-*.css'))
+          root = Path(os.environ.get('PUBLISH_DIR', '.output/public'))
+          if not root.exists():
+              raise SystemExit(f'No build output directory found at {root}')
+
+          assets = root / 'assets'
+          js_files = sorted(assets.glob('index-*.js'))
+          css_files = sorted(assets.glob('styles-*.css'))
 
           if not js_files:
-              print('No index-*.js found in assets; listing assets:')
-              for p in sorted(assets_dir.iterdir()):
-                  print(' -', p.name)
+              print(f'No index-*.js files found under {assets}. Listing contents:')
+              for child in sorted(assets.iterdir()):
+                  print(' -', child.name)
               raise SystemExit(1)
 
-          js_file = js_files[0]
-          css_file = css_files[0] if css_files else None
+          js_file = js_files[0].name
+          css_file = css_files[0].name if css_files else None
           css_link = f'  <link rel="stylesheet" href="assets/{css_file}">' if css_file else ''
 
           html = f'''<!doctype html>
@@ -86,46 +86,34 @@ jobs:
           </html>
           '''
 
-          (out / 'index.html').write_text(html, encoding='utf-8')
-          print(f'Generated public_out/index.html referencing assets/{js_file}')
-
-          if not (out / '404.html').exists():
-              (out / '404.html').write_text(html, encoding='utf-8')
-              print('Generated public_out/404.html as SPA fallback')
+          (root / 'index.html').write_text(html, encoding='utf-8')
+          (root / '404.html').write_text(html, encoding='utf-8')
+          print(f'Wrote index.html/404.html with script assets/{js_file}')
           PY
 
-      - name: Verify publish directory and index references
+      - name: Verify Pages artifact content
         run: |
-          python - <<'PY'
+          python3 - <<'PY'
+          import os
           from pathlib import Path
           import re
 
-          out = Path('public_out')
-          idx = out / 'index.html'
+          root = Path(os.environ.get('PUBLISH_DIR', '.output/public'))
+          idx = root / 'index.html'
           if not idx.exists():
-              print(f'ERROR: {idx} not found')
-              raise SystemExit(1)
+              raise SystemExit(f'ERROR: missing {idx}')
 
           text = idx.read_text(encoding='utf-8')
           match = re.search(r'<script[^>]+src="([^"]+)"', text)
           if not match:
-              print(f'ERROR: no script src found in {idx}')
-              raise SystemExit(1)
+              raise SystemExit(f'ERROR: no script tag found in {idx}')
 
-          script_src = match.group(1)
-          script_path = out / script_src
-          print(f'Index references script: {script_src}')
-          if not script_path.exists():
-              print(f'ERROR: referenced script {script_path} is missing')
-              for child in sorted((out / 'assets').iterdir()):
-                  print(' -', child.name)
-              raise SystemExit(1)
+          script = root / match.group(1)
+          if not script.exists():
+              raise SystemExit(f'ERROR: referenced script does not exist: {script}')
 
-          print('Publish directory verification passed: index.html references an existing asset.')
+          print(f'Verified index.html references existing script: {match.group(1)}')
           PY
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -133,7 +121,7 @@ jobs:
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: public_out
+          path: ${{ env.PUBLISH_DIR }}
 
       - name: Deploy to GitHub Pages
         id: deployment
